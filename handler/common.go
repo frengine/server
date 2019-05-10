@@ -1,17 +1,18 @@
 package handler
 
 import (
-	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/frengine/server/auth"
 )
 
 type Deps struct {
-	DB      *sql.DB
-	LogInfo *log.Logger
-	LogErr  *log.Logger
+	UserStore auth.Store
+	LogInfo   *log.Logger
+	LogErr    *log.Logger
 }
 
 func respondJSON(w http.ResponseWriter, r *http.Request, code int, v interface{}, lm time.Time) (error, bool) {

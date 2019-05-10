@@ -14,7 +14,7 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
-type loginResponse struct {
+type loginResponseSuccess struct {
 	Success bool `json:"success"`
 
 	Token string `json:"token"`
@@ -22,8 +22,12 @@ type loginResponse struct {
 	User auth.User `json:"user"`
 }
 
+type loginResponseError struct {
+	Success bool `json:"success"`
+}
+
 type LoginHandler struct {
-	Deps Deps
+	Deps
 }
 
 func (h LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -32,28 +36,34 @@ func (h LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body)
 	err := dec.Decode(&loginReq)
 	if err != nil {
-		h.Deps.LogErr.Println(err)
+		h.LogErr.Println(err)
 		respondError(w, r, http.StatusBadRequest, "cannot decode json as body")
 		return
 	}
 
-	loginResp := loginResponse{}
-
-	user, err := auth.CheckLogin(loginReq.Login, loginReq.Password)
-	if user == (auth.User{}) {
+	user, err := h.UserStore.CheckLogin(loginReq.Login, loginReq.Password)
+	if err == auth.ErrNoFound {
+		loginResp := loginResponseError{}
 		respondSuccess(w, r, loginResp, time.Time{})
 		return
 	}
+	if err != nil {
+		h.LogErr.Println(err)
+		respondError(w, r, http.StatusInternalServerError, "cannot fetch from database")
+		return
+	}
 
-	loginResp.Success = true
-	loginResp.User = user
-	loginResp.Token = generateToken(user)
+	loginResp := loginResponseSuccess{
+		Success: true,
+		User:    user,
+		Token:   generateToken(user),
+	}
 
 	respondSuccess(w, r, loginResp, time.Time{})
 }
 
 type registerRequest struct {
-	Login     string `json:"login"`
+	Name      string `json:"name"`
 	Password  string `json:"password"`
 	Password2 string `json:"password2"`
 }
@@ -63,11 +73,47 @@ type registerResponse struct {
 }
 
 type RegisterHandler struct {
-	Deps Deps
+	Deps
 }
 
 func (h RegisterHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	respondSuccess(w, r, nil, time.Time{})
+	var req registerRequest
+
+	dec := json.NewDecoder(r.Body)
+	err := dec.Decode(&req)
+	if err != nil {
+		respondError(w, r, http.StatusBadRequest, "cannot decode json as body")
+		return
+	}
+
+	// User form entry errors.
+	if len(req.Name) == 0 || len(req.Password) == 0 {
+		respondError(w, r, http.StatusForbidden, "missing required fields")
+		return
+	}
+	if req.Password != req.Password2 {
+		respondError(w, r, http.StatusForbidden, "passwords don't match")
+		return
+	}
+	/*if len(req.Password) < 8 {
+		respondError(w, r, http.StatusForbidden, "longer password pls")
+		return
+	}*/
+
+	err = h.UserStore.Register(req.Name, req.Password)
+	if err == auth.ErrAlreadyExists {
+		respondError(w, r, http.StatusForbidden, "name already exists")
+		return
+	}
+	if err != nil {
+		h.LogErr.Println(err)
+		respondError(w, r, http.StatusBadRequest, "cannot fetch from database")
+		return
+	}
+
+	resp := registerResponse{true}
+
+	respondSuccess(w, r, resp, time.Time{})
 }
 
 func generateToken(user auth.User) string {

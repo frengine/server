@@ -7,12 +7,14 @@ import (
 	"time"
 
 	"github.com/frengine/server/auth"
+	"github.com/frengine/server/config"
 )
 
 type Deps struct {
 	UserStore auth.Store
 	LogInfo   *log.Logger
 	LogErr    *log.Logger
+	Cfg       config.Config
 }
 
 func respondJSON(w http.ResponseWriter, r *http.Request, code int, v interface{}, lm time.Time) (error, bool) {

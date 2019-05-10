@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/frengine/server/auth"
 )
 
@@ -53,10 +53,18 @@ func (h LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.LogErr.Println(h.Cfg)
+	token, err := generateToken(user, h.Cfg.JWTSecret)
+	if err != nil {
+		h.LogErr.Println(err)
+		respondError(w, r, http.StatusInternalServerError, "")
+		return
+	}
+
 	loginResp := loginResponseSuccess{
 		Success: true,
 		User:    user,
-		Token:   generateToken(user),
+		Token:   token,
 	}
 
 	respondSuccess(w, r, loginResp, time.Time{})
@@ -116,6 +124,11 @@ func (h RegisterHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	respondSuccess(w, r, resp, time.Time{})
 }
 
-func generateToken(user auth.User) string {
-	return base64.StdEncoding.EncodeToString([]byte(user.Name))
+func generateToken(user auth.User, secret string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"uid":   user.ID,
+		"since": time.Now().Unix(),
+	})
+
+	return token.SignedString([]byte(secret))
 }

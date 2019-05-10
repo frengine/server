@@ -51,6 +51,7 @@ func main() {
 		auth.Store{db},
 		log.New(os.Stdout, "", log.Ldate|log.Ltime),
 		log.New(os.Stderr, "", log.Ldate|log.Ltime|log.Llongfile),
+		cfg,
 	}
 
 	r := mux.NewRouter()

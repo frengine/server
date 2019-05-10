@@ -15,6 +15,7 @@ type Config struct {
 		Host     string `json:"host"`
 		Port     int    `json:"port"`
 	} `json:"db"`
+	JWTSecret string `json:"jwtSecret"`
 }
 
 var ErrFileNotExists = os.ErrNotExist
@@ -52,7 +53,8 @@ var defaultJSON = []byte(`{
 		"database": "frengine",
 		"host": "localhost",
 		"port": 3306
-	}
+	},
+	"jwtSecret": "secret for generating JWT keys here"
 }
 `)
 

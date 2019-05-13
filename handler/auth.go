@@ -53,7 +53,6 @@ func (h LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.LogErr.Println(h.Cfg)
 	token, err := generateToken(user, h.Cfg.JWTSecret)
 	if err != nil {
 		h.LogErr.Println(err)

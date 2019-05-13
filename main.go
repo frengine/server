@@ -16,7 +16,6 @@ import (
 
 func main() {
 	cfg, err := config.ParseFromFile("config.json")
-	fmt.Println(cfg, cfg.MakeDBString())
 	if err != nil {
 		if err == config.ErrFileNotExists {
 			err := config.WriteDefault("config.json")
@@ -48,7 +47,7 @@ func main() {
 	}
 
 	deps := handler.Deps{
-		auth.Store{db},
+		auth.PostgresStore{db},
 		log.New(os.Stdout, "", log.Ldate|log.Ltime),
 		log.New(os.Stderr, "", log.Ldate|log.Ltime|log.Llongfile),
 		cfg,

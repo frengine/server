@@ -7,7 +7,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Store struct {
+type Store interface {
+	CheckLogin(name string, password string) (User, error)
+	Register(name string, password string) error
+}
+
+type PostgresStore struct {
 	DB *sql.DB
 }
 
@@ -21,7 +26,7 @@ var (
 	ErrAlreadyExists = errors.New("user already exists")
 )
 
-func (s Store) CheckLogin(name string, password string) (User, error) {
+func (s PostgresStore) CheckLogin(name string, password string) (User, error) {
 	u := User{}
 
 	row := s.DB.QueryRow(`SELECT id, login, password FROM account WHERE login=$1;`,
@@ -36,10 +41,11 @@ func (s Store) CheckLogin(name string, password string) (User, error) {
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(passwd), []byte(password))
+
 	return u, err
 }
 
-func (s Store) Register(name string, password string) error {
+func (s PostgresStore) Register(name string, password string) error {
 	// TODO: Make these prepared statements.
 
 	passwd, err := bcrypt.GenerateFromPassword([]byte(password), -1)

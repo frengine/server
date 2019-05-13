@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"time"
 )
 
 type LoggerWare struct {
@@ -10,8 +11,14 @@ type LoggerWare struct {
 
 func (mw LoggerWare) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tm := time.Now()
+
 		next.ServeHTTP(w, r)
 
-		mw.Deps.LogInfo.Printf("%dms %s: %s", 1337, r.RemoteAddr, r.RequestURI)
+		diff := time.Since(tm)
+
+		ms := float64(diff / time.Millisecond)
+
+		mw.Deps.LogInfo.Printf("%.2fms %s: %s", ms, r.RemoteAddr, r.RequestURI)
 	})
 }

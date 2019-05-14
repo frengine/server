@@ -54,11 +54,21 @@ func main() {
 	}
 
 	r := mux.NewRouter()
-
 	r.Use((handler.LoggerWare{deps}).Middleware)
 
-	r.Handle("/auth/login", handler.LoginHandler{deps}).Methods("POST")
-	r.Handle("/auth/register", handler.RegisterHandler{deps}).Methods("POST")
+	{
+		s := r.PathPrefix("/auth").Subrouter()
+
+		s.Handle("/login", handler.LoginHandler{deps}).Methods("POST")
+		s.Handle("/register", handler.RegisterHandler{deps}).Methods("POST")
+	}
+
+	{
+		s := r.PathPrefix("/textvcs").Subrouter()
+		s.Use((handler.AuthWare{deps}).Middleware)
+
+		s.Handle("/", handler.TestHandler{deps}).Methods("POST")
+	}
 
 	srv := http.Server{
 		Addr:    ":8083",

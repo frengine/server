@@ -6,7 +6,7 @@ import (
 )
 
 type LoggerWare struct {
-	Deps Deps
+	Deps
 }
 
 func (mw LoggerWare) Middleware(next http.Handler) http.Handler {
@@ -19,6 +19,6 @@ func (mw LoggerWare) Middleware(next http.Handler) http.Handler {
 
 		ms := float64(diff / time.Millisecond)
 
-		mw.Deps.LogInfo.Printf("%.2fms %s: %s", ms, r.RemoteAddr, r.RequestURI)
+		mw.LogInfo.Printf("%.2fms %s: %s", ms, r.RemoteAddr, r.RequestURI)
 	})
 }

@@ -2,11 +2,15 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/frengine/server/auth"
+	"github.com/gorilla/mux"
 )
 
 type loginRequest struct {
@@ -130,4 +134,49 @@ func generateToken(user auth.User, secret string) (string, error) {
 	})
 
 	return token.SignedString([]byte(secret))
+}
+
+type AuthWare struct {
+	Deps
+}
+
+func (mv AuthWare) Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key := r.Header.Get("Authorization")
+		parts := strings.Split(key, " ")
+		key = parts[len(parts)-1]
+		if key == "" {
+			respondError(w, r, http.StatusUnauthorized, "Authentication header empty")
+			return
+		}
+
+		token, err := jwt.Parse(key, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return []byte(mv.Cfg.JWTSecret), nil
+		})
+
+		if err != nil {
+			respondError(w, r, http.StatusUnauthorized, "invalid token 0")
+			mv.LogErr.Println(err)
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok || !token.Valid {
+			respondError(w, r, http.StatusUnauthorized, "invalid token 2")
+			return
+		}
+
+		var uid float64
+		if uid, ok = claims["uid"].(float64); !ok {
+			respondError(w, r, http.StatusUnauthorized, "invalid token 3")
+			return
+		}
+
+		mux.Vars(r)["uid"] = strconv.Itoa(int(uid))
+
+		next.ServeHTTP(w, r)
+	})
 }

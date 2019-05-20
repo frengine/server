@@ -3,7 +3,6 @@ package auth
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
@@ -58,6 +57,7 @@ func (s PostgresStore) Register(name string, password string) error {
 	result, err := s.DB.Exec(`INSERT INTO account (login, password) VALUES ($1, $2);`,
 		name, passwd)
 	if err != nil {
+		pqErr := err.(*pq.Error)
 		if pqErr.Code == "23505" {
 			return ErrAlreadyExists
 		}

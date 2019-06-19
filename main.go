@@ -78,8 +78,11 @@ func main() {
 		s.Use((handler.AuthWare{deps}).Middleware)
 
 		s.Handle("", handler.ProjectListHandler{deps}).Methods("GET")
+		s.Handle("/{id}", handler.ProjectGetHandler{deps}).Methods("GET")
+
 		s.Handle("", handler.ProjectCreateHandler{deps}).Methods("POST")
 		s.Handle("/{id}", handler.ProjectUpdateHandler{deps}).Methods("PUT")
+		s.Handle("/{id}", handler.ProjectDeleteHandler{deps}).Methods("DELETE")
 	}
 
 	srv := http.Server{

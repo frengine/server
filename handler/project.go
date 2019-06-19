@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -15,10 +16,6 @@ type ProjectListHandler struct {
 	Deps
 }
 
-type listResponse struct {
-	Projects []project.Project `json:"projects"`
-}
-
 func (h ProjectListHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ps, err := h.Deps.ProjectStore.Search()
 	if err != nil && err != project.ErrNoFound {
@@ -29,7 +26,28 @@ func (h ProjectListHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: Last modified
 
-	respondSuccess(w, r, listResponse{ps}, time.Time{})
+	respondSuccess(w, r, ps, time.Time{})
+}
+
+type ProjectGetHandler struct {
+	Deps
+}
+
+func (h ProjectGetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	pid, _ := strconv.Atoi(mux.Vars(r)["id"])
+
+	p, err := h.Deps.ProjectStore.FetchByID(pid)
+	if err != nil {
+		if err == project.ErrNoFound {
+			respond404(w, r)
+			return
+		}
+		h.LogErr.Println(err)
+		respond500(w, r)
+		return
+	}
+
+	respondSuccess(w, r, p, p.LastModified())
 }
 
 type ProjectCreateHandler struct {
@@ -123,6 +141,21 @@ func (h ProjectUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		h.LogErr.Println(err)
 		respond500(w, r)
 		return
+	}
+
+	respondSuccess(w, r, "success", time.Time{})
+}
+
+type ProjectDeleteHandler struct {
+	Deps
+}
+
+func (h ProjectDeleteHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	pid, _ := strconv.Atoi(mux.Vars(r)["id"])
+
+	err := h.Deps.ProjectStore.Delete(pid)
+	if err != nil {
+		fmt.Println(err)
 	}
 
 	respondSuccess(w, r, "success", time.Time{})

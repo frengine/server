@@ -79,6 +79,10 @@ func (h ProjectCreateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if req.Author == 0 {
+		req.Author = u.ID
+	}
+
 	if u.ID != req.Author {
 		respondError(w, r, http.StatusForbidden, "forbidden")
 		return

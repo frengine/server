@@ -3,7 +3,6 @@ package project
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/lib/pq"
@@ -25,7 +24,6 @@ func (s PostgresStore) SaveRevision(pid int, content string) error {
 	_, err := s.DB.Exec(`INSERT INTO revision (content, project_id) VALUES ($1, $2);`, content, pid)
 	if err != nil {
 		pqErr := err.(*pq.Error)
-		fmt.Println(err)
 		if pqErr.Code == "23503" {
 			return ErrInvalidProject
 		}

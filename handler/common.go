@@ -22,6 +22,16 @@ type Deps struct {
 	Cfg          config.Config
 }
 
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (lrw *loggingResponseWriter) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
+
 func respondJSON(w http.ResponseWriter, r *http.Request, code int, v interface{}, lm time.Time) (error, bool) {
 	data, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {

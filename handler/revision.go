@@ -39,6 +39,29 @@ type RevisionSaveHandler struct {
 func (h RevisionSaveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	pid, _ := strconv.Atoi(mux.Vars(r)["id"])
 
+	p, err := h.Deps.ProjectStore.FetchByID(pid)
+	if err != nil {
+		if err == project.ErrNoFound {
+			respond404(w, r)
+			return
+		}
+		h.LogErr.Println(err)
+		respond500(w, r)
+		return
+	}
+
+	u, err := getUserFromVars(r)
+	if err != nil {
+		h.LogErr.Println(err)
+		respond500(w, r)
+		return
+	}
+
+	if p.Author.ID != u.ID {
+		respondError(w, r, http.StatusForbidden, "forbidden")
+		return
+	}
+
 	content, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		h.LogErr.Println(err)

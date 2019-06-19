@@ -117,6 +117,18 @@ func (h ProjectUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	u, err := getUserFromVars(r)
+	if err != nil {
+		h.LogErr.Println(err)
+		respond500(w, r)
+		return
+	}
+
+	if p.Author.ID != u.ID {
+		respondError(w, r, http.StatusForbidden, "forbidden")
+		return
+	}
+
 	req := updateReq{}
 
 	decoder := json.NewDecoder(r.Body)
@@ -153,7 +165,30 @@ type ProjectDeleteHandler struct {
 func (h ProjectDeleteHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	pid, _ := strconv.Atoi(mux.Vars(r)["id"])
 
-	err := h.Deps.ProjectStore.Delete(pid)
+	p, err := h.Deps.ProjectStore.FetchByID(pid)
+	if err != nil {
+		if err == project.ErrNoFound {
+			respond404(w, r)
+			return
+		}
+		h.LogErr.Println(err)
+		respond500(w, r)
+		return
+	}
+
+	u, err := getUserFromVars(r)
+	if err != nil {
+		h.LogErr.Println(err)
+		respond500(w, r)
+		return
+	}
+
+	if p.Author.ID != u.ID {
+		respondError(w, r, http.StatusForbidden, "forbidden")
+		return
+	}
+
+	err = h.Deps.ProjectStore.Delete(pid)
 	if err != nil {
 		fmt.Println(err)
 	}

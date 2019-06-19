@@ -88,7 +88,7 @@ func (h ProjectCreateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	pid, err := h.Deps.ProjectStore.Create(req.Name, auth.User{ID: u.ID})
+	pid, err := h.Deps.ProjectStore.Create(req.Name, auth.User{ID: req.Author})
 	if err != nil {
 		h.LogErr.Println(err)
 		respond500(w, r)

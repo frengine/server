@@ -6,10 +6,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/frengine/server/auth"
 	"github.com/frengine/server/config"
 	"github.com/frengine/server/handler"
+	"github.com/frengine/server/project"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 )
@@ -48,6 +50,7 @@ func main() {
 
 	deps := handler.Deps{
 		auth.PostgresStore{db},
+		project.PostgresStore{db},
 		log.New(os.Stdout, "", log.Ldate|log.Ltime),
 		log.New(os.Stderr, "", log.Ldate|log.Ltime|log.Llongfile),
 		cfg,
@@ -67,14 +70,24 @@ func main() {
 		s := r.PathPrefix("/textvcs").Subrouter()
 		s.Use((handler.AuthWare{deps}).Middleware)
 
-		s.Handle("/", handler.TestHandler{deps}).Methods("POST")
+		s.Handle("", handler.TestHandler{deps}).Methods("POST")
+	}
+
+	{
+		s := r.PathPrefix("/projects").Subrouter()
+		s.Use((handler.AuthWare{deps}).Middleware)
+
+		s.Handle("", handler.ProjectListHandler{deps}).Methods("GET")
+		s.Handle("", handler.ProjectCreateHandler{deps}).Methods("POST")
+		s.Handle("/{id}", handler.ProjectUpdateHandler{deps}).Methods("PUT")
 	}
 
 	srv := http.Server{
 		Addr:    ":8083",
 		Handler: r,
 
-		// TODO: sane timeouts
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
 
 	deps.LogInfo.Println("Started")

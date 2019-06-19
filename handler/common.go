@@ -2,19 +2,24 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/frengine/server/auth"
 	"github.com/frengine/server/config"
+	"github.com/frengine/server/project"
+	"github.com/gorilla/mux"
 )
 
 type Deps struct {
-	UserStore auth.Store
-	LogInfo   *log.Logger
-	LogErr    *log.Logger
-	Cfg       config.Config
+	UserStore    auth.Store
+	ProjectStore project.Store
+	LogInfo      *log.Logger
+	LogErr       *log.Logger
+	Cfg          config.Config
 }
 
 func respondJSON(w http.ResponseWriter, r *http.Request, code int, v interface{}, lm time.Time) (error, bool) {
@@ -33,6 +38,8 @@ func respondJSON(w http.ResponseWriter, r *http.Request, code int, v interface{}
 		w.Header().Set("Last-Modified", lm.Format(http.TimeFormat))
 	}
 
+	w.WriteHeader(code)
+
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_, err = w.Write(data)
 	return err, true
@@ -44,4 +51,24 @@ func respondError(w http.ResponseWriter, r *http.Request, code int, message stri
 
 func respondSuccess(w http.ResponseWriter, r *http.Request, v interface{}, lm time.Time) (error, bool) {
 	return respondJSON(w, r, http.StatusOK, v, lm)
+}
+
+func respond500(w http.ResponseWriter, r *http.Request) error {
+	err, _ := respondError(w, r, http.StatusInternalServerError, "internal server error")
+	return err
+}
+
+func respond404(w http.ResponseWriter, r *http.Request) error {
+	err, _ := respondError(w, r, http.StatusNotFound, "not found")
+	return err
+}
+
+func getUserFromVars(r *http.Request) (auth.User, error) {
+	vars := mux.Vars(r)
+	uid, _ := strconv.Atoi(vars["uid"])
+	if uid == 0 {
+		return auth.User{}, fmt.Errorf("cannot get uid from mux vars, is 0")
+	}
+
+	return auth.User{ID: uint(uid)}, nil
 }

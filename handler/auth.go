@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -57,7 +58,7 @@ func (h LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := generateToken(user, h.Cfg.JWTSecret)
+	token, err := generateToken(user, []byte(h.Cfg.JWTSecret))
 	if err != nil {
 		h.LogErr.Println(err)
 		respondError(w, r, http.StatusInternalServerError, "")
@@ -67,7 +68,8 @@ func (h LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	loginResp := loginResponseSuccess{
 		Success: true,
 		User:    user,
-		Token:   token,
+		Token:   base64.StdEncoding.EncodeToString([]byte(token)),
+		//Token: token,
 	}
 
 	respondSuccess(w, r, loginResp, time.Time{})
@@ -106,10 +108,10 @@ func (h RegisterHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		respondError(w, r, http.StatusForbidden, "passwords don't match")
 		return
 	}
-	/*if len(req.Password) < 8 {
+	if len(req.Password) < 8 {
 		respondError(w, r, http.StatusForbidden, "longer password pls")
 		return
-	}*/
+	}
 
 	err = h.UserStore.Register(req.Name, req.Password)
 	if err == auth.ErrAlreadyExists {
@@ -127,13 +129,23 @@ func (h RegisterHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	respondSuccess(w, r, resp, time.Time{})
 }
 
-func generateToken(user auth.User, secret string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"uid":   user.ID,
-		"since": time.Now().Unix(),
-	})
+type Claims struct {
+	UID uint `json:"uid"`
+	jwt.StandardClaims
+}
 
-	return token.SignedString([]byte(secret))
+func generateToken(user auth.User, secret []byte) (string, error) {
+	expirationTime := time.Now().Add(72 * time.Hour)
+	claims := &Claims{
+		UID: user.ID,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: expirationTime.Unix(),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	return token.SignedString(secret)
 }
 
 type AuthWare struct {
@@ -143,6 +155,8 @@ type AuthWare struct {
 func (mv AuthWare) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		key := r.Header.Get("Authorization")
+		fmt.Println("Raw:", key)
+
 		parts := strings.Split(key, " ")
 		key = parts[len(parts)-1]
 		if key == "" {
@@ -150,32 +164,36 @@ func (mv AuthWare) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		token, err := jwt.Parse(key, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-			}
-			return []byte(mv.Cfg.JWTSecret), nil
-		})
-
+		keyStr, err := base64.StdEncoding.DecodeString(key)
 		if err != nil {
+			respondError(w, r, http.StatusBadRequest, "invalid token 5")
+			mv.LogErr.Println(err)
+			return
+		}
+
+		fmt.Println(string(keyStr))
+
+		claims := &Claims{}
+
+		tkn, err := jwt.ParseWithClaims(string(keyStr), claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(mv.Deps.Cfg.JWTSecret), nil
+		})
+		if err != nil {
+			if err == jwt.ErrSignatureInvalid {
+				respondError(w, r, http.StatusUnauthorized, "expired token")
+				return
+			}
+			respondError(w, r, http.StatusBadRequest, "invalid token 1")
+			mv.LogErr.Println(err)
+			return
+		}
+		if !tkn.Valid {
 			respondError(w, r, http.StatusUnauthorized, "invalid token 0")
 			mv.LogErr.Println(err)
 			return
 		}
 
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok || !token.Valid {
-			respondError(w, r, http.StatusUnauthorized, "invalid token 2")
-			return
-		}
-
-		var uid float64
-		if uid, ok = claims["uid"].(float64); !ok {
-			respondError(w, r, http.StatusUnauthorized, "invalid token 3")
-			return
-		}
-
-		mux.Vars(r)["uid"] = strconv.Itoa(int(uid))
+		mux.Vars(r)["uid"] = strconv.Itoa(int(claims.UID))
 
 		next.ServeHTTP(w, r)
 	})

@@ -83,6 +83,9 @@ func main() {
 		s.Handle("", handler.ProjectCreateHandler{deps}).Methods("POST")
 		s.Handle("/{id}", handler.ProjectUpdateHandler{deps}).Methods("PUT")
 		s.Handle("/{id}", handler.ProjectDeleteHandler{deps}).Methods("DELETE")
+
+		s.Handle("/{id}/revision", handler.RevisionGetHandler{deps}).Methods("GET")
+		s.Handle("/{id}/revision", handler.RevisionSaveHandler{deps}).Methods("POST")
 	}
 
 	srv := http.Server{

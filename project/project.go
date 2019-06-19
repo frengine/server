@@ -39,6 +39,9 @@ type Store interface {
 	Create(name string, author auth.User) (int, error)
 	Update(p Project) error
 	Delete(id int) error
+
+	SaveRevision(pid int, content string) error
+	FetchLatestRevisionByProject(pid int) (Revision, error)
 }
 
 type PostgresStore struct {

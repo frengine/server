@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -155,7 +154,6 @@ type AuthWare struct {
 func (mv AuthWare) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		key := r.Header.Get("Authorization")
-		fmt.Println("Raw:", key)
 
 		parts := strings.Split(key, " ")
 		key = parts[len(parts)-1]
@@ -170,8 +168,6 @@ func (mv AuthWare) Middleware(next http.Handler) http.Handler {
 			mv.LogErr.Println(err)
 			return
 		}
-
-		fmt.Println(string(keyStr))
 
 		claims := &Claims{}
 

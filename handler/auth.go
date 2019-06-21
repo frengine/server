@@ -48,7 +48,7 @@ func (h LoginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	user, err := h.UserStore.CheckLogin(loginReq.Login, loginReq.Password)
 	if err == auth.ErrNoFound {
 		loginResp := loginResponseError{}
-		respondSuccess(w, r, loginResp, time.Time{})
+		respondJSON(w, r, http.StatusUnauthorized, loginResp, time.Time{})
 		return
 	}
 	if err != nil {

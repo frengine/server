@@ -42,6 +42,9 @@ func (s PostgresStore) CheckLogin(name string, password string) (User, error) {
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(passwd), []byte(password))
+	if err == bcrypt.ErrMismatchedHashAndPassword {
+		return u, ErrNoFound
+	}
 
 	return u, err
 }

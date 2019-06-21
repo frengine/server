@@ -59,22 +59,24 @@ func main() {
 	r := mux.NewRouter()
 	r.Use((handler.LoggerWare{deps}).Middleware)
 
+	api := r.PathPrefix("/api").Subrouter()
+
 	{
-		s := r.PathPrefix("/auth").Subrouter()
+		s := api.PathPrefix("/auth").Subrouter()
 
 		s.Handle("/login", handler.LoginHandler{deps}).Methods("POST")
 		s.Handle("/register", handler.RegisterHandler{deps}).Methods("POST")
 	}
 
 	{
-		s := r.PathPrefix("/textvcs").Subrouter()
+		s := api.PathPrefix("/textvcs").Subrouter()
 		s.Use((handler.AuthWare{deps}).Middleware)
 
 		s.Handle("", handler.TestHandler{deps}).Methods("POST")
 	}
 
 	{
-		s := r.PathPrefix("/projects").Subrouter()
+		s := api.PathPrefix("/projects").Subrouter()
 		s.Use((handler.AuthWare{deps}).Middleware)
 
 		s.Handle("", handler.ProjectListHandler{deps}).Methods("GET")

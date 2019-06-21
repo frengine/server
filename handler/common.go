@@ -82,3 +82,34 @@ func getUserFromVars(r *http.Request) (auth.User, error) {
 
 	return auth.User{ID: uint(uid)}, nil
 }
+
+func mustBeLoggedInAs(w http.ResponseWriter, r *http.Request, d Deps, uid uint) bool {
+	u, err := getUserFromVars(r)
+	if err != nil {
+		d.LogErr.Println(err)
+		respond500(w, r)
+		return false
+	}
+
+	if uid != u.ID {
+		respondError(w, r, http.StatusForbidden, "forbidden")
+		return false
+	}
+
+	return true
+}
+
+func mustFetchProject(w http.ResponseWriter, r *http.Request, d Deps, pid int) (*project.Project, bool) {
+	p, err := d.ProjectStore.FetchByID(pid)
+	if err != nil {
+		if err == project.ErrNoFound {
+			respond404(w, r)
+			return nil, false
+		}
+		d.LogErr.Println(err)
+		respond500(w, r)
+		return nil, false
+	}
+
+	return &p, true
+}

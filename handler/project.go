@@ -36,14 +36,8 @@ type ProjectGetHandler struct {
 func (h ProjectGetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	pid, _ := strconv.Atoi(mux.Vars(r)["id"])
 
-	p, err := h.Deps.ProjectStore.FetchByID(pid)
-	if err != nil {
-		if err == project.ErrNoFound {
-			respond404(w, r)
-			return
-		}
-		h.LogErr.Println(err)
-		respond500(w, r)
+	p, ok := mustFetchProject(w, r, h.Deps, pid)
+	if !ok {
 		return
 	}
 
@@ -110,26 +104,12 @@ type updateReq struct {
 func (h ProjectUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	pid, _ := strconv.Atoi(mux.Vars(r)["id"])
 
-	p, err := h.Deps.ProjectStore.FetchByID(pid)
-	if err != nil {
-		if err == project.ErrNoFound {
-			respond404(w, r)
-			return
-		}
-		h.LogErr.Println(err)
-		respond500(w, r)
+	p, ok := mustFetchProject(w, r, h.Deps, pid)
+	if !ok {
 		return
 	}
 
-	u, err := getUserFromVars(r)
-	if err != nil {
-		h.LogErr.Println(err)
-		respond500(w, r)
-		return
-	}
-
-	if p.Author.ID != u.ID {
-		respondError(w, r, http.StatusForbidden, "forbidden")
+	if !mustBeLoggedInAs(w, r, h.Deps, p.Author.ID) {
 		return
 	}
 
@@ -148,7 +128,7 @@ func (h ProjectUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		p.Author.ID = req.Author
 	}
 
-	err = h.Deps.ProjectStore.Update(p)
+	err := h.Deps.ProjectStore.Update(*p)
 	if err != nil {
 		if err == project.ErrInvalidAuthor {
 			respondError(w, r, http.StatusBadRequest, "invalid author")

@@ -9,8 +9,8 @@ import (
 )
 
 type Revision struct {
-	ID      int    `json:"id"`
-	Content string `json:"content"`
+	ID      *int    `json:"id"`
+	Content *string `json:"content"`
 
 	Created    *time.Time `json:"-"`
 	CreatedUTS int64      `json:"created"`

@@ -15,10 +15,10 @@ type Project struct {
 	Author     *auth.User `json:"author,omitempty"`
 	Modtime    *time.Time `json:"-"`
 	ModtimeUTS int64      `json:"modtime"`
-	Edited     *time.Time `json:"-"`
-	EditedUTS  int64      `json:"lastedited"`
 	Created    *time.Time `json:"-"`
 	CreatedUTS int64      `json:"created"`
+
+	Revision *Revision `json:"revision"`
 
 	TouchedUTS int64 `json:"touched"`
 
@@ -60,11 +60,13 @@ var (
 
 func (s PostgresStore) Search() ([]Project, error) {
 	q := `
-	SELECT project.id, project.name, project.modtime, project.created, account.id, account.login,
-	(SELECT created FROM revision WHERE project_id=project.id ORDER BY id DESC LIMIT 1)
+	SELECT project.id, project.name, project.modtime, project.created, account.id, account.login, revision.id, revision.content, revision.created
 	FROM project
-	INNER JOIN account ON project.author_id = account.id
-	WHERE deleted IS NULL;`
+	INNER JOIN account
+		ON project.author_id = account.id
+	LEFT JOIN revision
+		ON revision.id = (SELECT id FROM revision WHERE project_id = project.id ORDER BY created DESC LIMIT 1)
+	WHERE project.deleted IS NULL`
 
 	rows, err := s.DB.Query(q)
 	if err != nil {
@@ -79,8 +81,9 @@ func (s PostgresStore) Search() ([]Project, error) {
 	for rows.Next() {
 		p := Project{}
 		u := auth.User{}
+		r := Revision{}
 
-		err := rows.Scan(&p.ID, &p.Name, &p.Modtime, &p.Created, &u.ID, &u.Name, &p.Edited)
+		err := rows.Scan(&p.ID, &p.Name, &p.Modtime, &p.Created, &u.ID, &u.Name, &r.ID, &r.Content, &r.Created)
 		if err != nil {
 			return ps, err
 		}
@@ -88,13 +91,19 @@ func (s PostgresStore) Search() ([]Project, error) {
 		if p.Modtime != nil {
 			p.ModtimeUTS = p.Modtime.Unix()
 		}
-		if p.Edited != nil {
-			p.EditedUTS = p.Edited.Unix()
+		if p.Created != nil {
+			p.CreatedUTS = p.Created.Unix()
 		}
+		if r.Created != nil {
+			r.CreatedUTS = r.Created.Unix()
+		}
+
 		p.CreatedUTS = p.Created.Unix()
-		p.TouchedUTS = max(p.ModtimeUTS, p.EditedUTS, p.CreatedUTS)
+		p.TouchedUTS = max(p.ModtimeUTS, r.CreatedUTS, p.CreatedUTS)
 
 		p.Author = &u
+
+		p.Revision = &r
 
 		ps = append(ps, p)
 	}
@@ -103,14 +112,21 @@ func (s PostgresStore) Search() ([]Project, error) {
 }
 
 func (s PostgresStore) FetchByID(id int) (Project, error) {
-	q := "SELECT project.id, project.name, project.modtime, project.created, account.id, account.login FROM project INNER JOIN account ON project.author_id = account.id WHERE project.id=$1 AND deleted IS NULL;"
+	q := `SELECT project.id, project.name, project.modtime, project.created, account.id, account.login, revision.id, revision.content, revision.created
+	FROM project
+	INNER JOIN account
+		ON project.author_id = account.id
+	LEFT JOIN revision
+		ON revision.id = (SELECT id FROM revision WHERE project_id = project.id ORDER BY created DESC LIMIT 1)
+	WHERE project.id=$1 AND deleted IS NULL;`
 
 	p := Project{}
 	u := auth.User{}
+	r := Revision{}
 
 	row := s.DB.QueryRow(q, id)
 
-	err := row.Scan(&p.ID, &p.Name, &p.Modtime, &p.Created, &u.ID, &u.Name)
+	err := row.Scan(&p.ID, &p.Name, &p.Modtime, &p.Created, &u.ID, &u.Name, &r.ID, &r.Content, &r.Created)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return p, ErrNoFound
@@ -121,13 +137,19 @@ func (s PostgresStore) FetchByID(id int) (Project, error) {
 	if p.Modtime != nil {
 		p.ModtimeUTS = p.Modtime.Unix()
 	}
-	if p.Edited != nil {
-		p.EditedUTS = p.Edited.Unix()
+	if p.Created != nil {
+		p.CreatedUTS = p.Created.Unix()
 	}
+	if r.Created != nil {
+		r.CreatedUTS = r.Created.Unix()
+	}
+
 	p.CreatedUTS = p.Created.Unix()
-	p.TouchedUTS = max(p.ModtimeUTS, p.EditedUTS, p.CreatedUTS)
+	p.TouchedUTS = max(p.ModtimeUTS, r.CreatedUTS, p.CreatedUTS)
 
 	p.Author = &u
+
+	p.Revision = &r
 
 	return p, err
 }

@@ -57,7 +57,6 @@ func main() {
 	}
 
 	r := mux.NewRouter()
-	r.Use((handler.LoggerWare{deps}).Middleware)
 
 	api := r.PathPrefix("/api").Subrouter()
 
@@ -69,26 +68,25 @@ func main() {
 	}
 
 	{
-		s := api.PathPrefix("/textvcs").Subrouter()
-		s.Use((handler.AuthWare{deps}).Middleware)
-
-		s.Handle("", handler.TestHandler{deps}).Methods("POST")
-	}
-
-	{
 		s := api.PathPrefix("/projects").Subrouter()
-		s.Use((handler.AuthWare{deps}).Middleware)
 
 		s.Handle("", handler.ProjectListHandler{deps}).Methods("GET")
-		s.Handle("", handler.ProjectCreateHandler{deps}).Methods("POST")
 
 		s.Handle("/{id}", handler.ProjectGetHandler{deps}).Methods("GET")
 
-		s.Handle("/{id}", handler.ProjectUpdateHandler{deps}).Methods("PUT")
-		s.Handle("/{id}", handler.ProjectDeleteHandler{deps}).Methods("DELETE")
-
 		s.Handle("/{id}/revision", handler.RevisionGetHandler{deps}).Methods("GET")
-		s.Handle("/{id}/revision", handler.RevisionSaveHandler{deps}).Methods("POST")
+
+		{
+			s := api.PathPrefix("/projects").Subrouter()
+			s.Use(handler.AuthWare{deps}.Middleware)
+
+			s.Handle("", handler.ProjectCreateHandler{deps}).Methods("POST")
+
+			s.Handle("/{id}", handler.ProjectUpdateHandler{deps}).Methods("PUT")
+			s.Handle("/{id}", handler.ProjectDeleteHandler{deps}).Methods("DELETE")
+
+			s.Handle("/{id}/revision", handler.RevisionSaveHandler{deps}).Methods("POST")
+		}
 
 	}
 

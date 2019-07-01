@@ -176,9 +176,9 @@ func (s PostgresStore) Create(name string, author auth.User) (int, error) {
 }
 
 func (s PostgresStore) Update(p Project) error {
-	q := `UPDATE project SET name = $2, author_id = $3, modtime = $4 WHERE id = $1;`
+	q := `UPDATE project SET name = $2, author_id = $3, modtime = NOW() WHERE id = $1;`
 
-	_, err := s.DB.Exec(q, p.ID, p.Name, p.Author.ID, time.Now())
+	_, err := s.DB.Exec(q, p.ID, p.Name, p.Author.ID)
 	if err != nil {
 		pqErr := err.(*pq.Error)
 		if pqErr.Code == "23503" {

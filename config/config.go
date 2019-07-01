@@ -42,8 +42,9 @@ func ParseFromFile(fileName string) (Config, error) {
 }
 
 func (c Config) MakeDBString() string {
-	// TODO: Port
-	return fmt.Sprintf("postgres://%s:%s@%s/%s", c.DB.UserName, c.DB.Password, c.DB.Host, c.DB.Database)
+	psqlInfo := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable TimeZone=UTC",
+	        c.DB.Host, c.DB.UserName, c.DB.Password, c.DB.Database)
+	return psqlInfo
 }
 
 var defaultJSON = []byte(`{

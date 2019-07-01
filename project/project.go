@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+	"sort"
 
 	"github.com/frengine/server/auth"
 	"github.com/lib/pq"
@@ -23,6 +24,23 @@ type Project struct {
 	TouchedUTS int64 `json:"touched"`
 
 	Deleted *time.Time `json:"-"`
+}
+
+type ProjectSlice []Project
+
+func (s ProjectSlice) Len() int {
+	return len(s)
+}
+
+func (s ProjectSlice) Less(i, j int) bool {
+	return s[i].TouchedUTS > s[j].TouchedUTS
+}
+
+func (s ProjectSlice) Swap(i, j int) {
+	cp := s[i]
+
+	s[i] = s[j]
+	s[j] = cp
 }
 
 func (p Project) LastModified() time.Time {
@@ -107,6 +125,8 @@ func (s PostgresStore) Search() ([]Project, error) {
 
 		ps = append(ps, p)
 	}
+
+	sort.Sort(ProjectSlice(ps))
 
 	return ps, rows.Err()
 }

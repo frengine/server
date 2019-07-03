@@ -1,0 +1,13 @@
+REST-ish server for a school project.
+
+Packages:
+
+auth: model for authentication; user accounts. Uses bcrypt.
+
+config: helper for reading the configuration file. Example configuration file is generated at startup.
+
+handler: HTTP handlers and middlewares.
+
+migrations: ehhm, simple migrations system for the database.
+
+project: models for project and revision. Models don't use an ORM (like the assignment said), but ours are designed on inferfaces so it's very easy to add a new storage system. All the HTTP handlers also get an instance of the models using the interfaces, so it's easy to move (like) revisions to non-SQL while keeping everything else in the relational database, without having to modify the rest of the program.

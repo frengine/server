@@ -6,7 +6,7 @@ auth: model for authentication; user accounts. Uses bcrypt.
 
 config: helper for reading the configuration file. Example configuration file is generated at startup.
 
-handler: HTTP handlers and middlewares.
+handler: HTTP handlers and middlewares (for JWT/auth).
 
 migrations: ehhm, simple migrations system for the database.
 
